@@ -1,4 +1,5 @@
 import { Telegraf } from 'telegraf';
+import { compose } from 'rambda';
 require('dotenv').config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -30,8 +31,6 @@ interface SelectingPlayers {
   othersPlayers: Player[],
   selectedPlayers: Player[],
 }
-
-const compose = (...fns: Function[]): any => x => fns.reduceRight((acc, fn) => fn(acc), x);
 
 const selectPlayer = (players: SelectingPlayers): SelectingPlayers => {
   const { othersPlayers, selectedPlayers } = players;
@@ -75,8 +74,17 @@ const setPlayersForRolling = (playersString: string): string => {
 bot.command('roll', (ctx) => ctx.reply(rollPairs()));
 bot.command('players', (ctx) => ctx.reply(playersToString(players)));
 bot.command('set', (ctx) => ctx.reply(compose(setPlayersForRolling, clearCommandMessage)(ctx.message.text)));
-bot.command('oldschool', (ctx) => ctx.reply('Hello'));
 bot.command('hipster', Telegraf.reply('λ'));
+bot.command('help', (ctx) => {
+  const helpText = `\
+    Чак Норрис на связи!\n
+    Прочитай эту инструкцию и сможешь как я - делать шпагат на двух летящих самолетах ;)\n
+    /players - вывести всех игроков\n
+    /roll - произвести выбор двух пар из ВСЕХ игроков\n
+    /set {names} - names - имена игроков через запятую и без пробелов пример:"Соня,Денис,Миша,Дима"\n
+  `
+  ctx.reply(helpText);
+})
 bot.launch();
 
 // Enable graceful stop
