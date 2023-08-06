@@ -1,4 +1,5 @@
 import { getDatabase, writeDatabase } from "..";
+import { authGuardMiddleware } from "../../middleware";
 import { User } from "../Users/types";
 import { Couple, Room, RoomStatus } from "./types";
 
@@ -41,6 +42,15 @@ export const addPlayerToRoom = async (id: number, playerId: number) => {
 
   const room = db.rooms[id] as Room;
   room.players = [...room.players, playerId];
+  await writeDatabase(db);
+};
+
+export const removePlayerFromRoom = async (id: number, playerId: number) => {
+  const db = await getDatabase();
+  if (!db.rooms[id]) {
+    throw new Error('room not exists')
+  }
+  db.rooms[id].players =  db.rooms[id].players.filter((userId) => userId !== playerId);
   await writeDatabase(db);
 };
 

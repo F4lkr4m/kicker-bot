@@ -1,10 +1,12 @@
-import { getUser } from "../../db/Users";
+import { addUser, getUser } from "../../db/Users";
+import { User } from "../../db/Users/types";
+import { authGuardMiddleware } from "../../middleware";
 import { Ctx } from "../../types";
 import { getMentionOfUser } from "../../utils/getMentionOfUser";
 
 
-export const meCommand = async (ctx: Ctx) => {
-  const id = ctx.update.message.from.id;
+export const meCommand = authGuardMiddleware(async (ctx: Ctx) => {
+  const id = ctx.message.from.id;
 
   try {
     const user = await getUser(id);
@@ -28,4 +30,4 @@ export const meCommand = async (ctx: Ctx) => {
   } catch (error) {
     ctx.reply('Произошла ошибка');
   }
-};
+});

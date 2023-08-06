@@ -1,5 +1,5 @@
 import { compose } from "rambda";
-import { addPlayerToRoom, addRoom, clearRoom, getRoom, setGame, setRoomStatus } from "../../db/Room";
+import { addPlayerToRoom, addRoom, clearRoom, getRoom, removePlayerFromRoom, setGame, setRoomStatus } from "../../db/Room";
 import { addLoseToUsers, addWinToUsers, getUser } from "../../db/Users";
 import { Ctx } from "../../types";
 import { getMentionOfUser } from "../../utils/getMentionOfUser";
@@ -8,6 +8,7 @@ import { Couple, Room } from "../../db/Room/types";
 import { writeDatabase } from "../../db";
 import { Context, NarrowedContext } from "telegraf";
 import { CallbackQuery, Update } from "telegraf/typings/core/types/typegram";
+import { authGuardMiddleware } from "../../middleware";
 
 export const createRoom = async (ctx: Ctx) => {
   const chatId = ctx.chat.id;
@@ -23,7 +24,29 @@ export const createRoom = async (ctx: Ctx) => {
   }
 };
 
-export const addPlayer = async (ctx: Ctx) => {
+export const clearRoomHandle = async (ctx: Ctx)  => {
+  const chatId = ctx.chat.id;
+
+  try {
+    await clearRoom(chatId);
+  } catch (error) {
+    ctx.reply('Произошла ошибка');
+  }
+};
+
+export const removePlayer = authGuardMiddleware(async (ctx: Ctx) => {
+  const id = ctx.chat.id;
+  const playerId = ctx.message.from.id;
+
+  try {
+    await removePlayerFromRoom(id, playerId);
+    ctx.reply('Вы вышли из комнаты');
+  } catch(error) {
+    ctx.reply('Произошла ошибка');
+  }
+});
+
+export const addPlayer = authGuardMiddleware(async (ctx: Ctx) => {
   const chatId = ctx.chat.id;
   const userId = ctx.message.from.id;
   try {
@@ -37,7 +60,7 @@ export const addPlayer = async (ctx: Ctx) => {
     }
     ctx.reply('Произошла ошибка');
   }
-};
+});
 
 export const showPlayers = async (ctx: Ctx) => {
   const chatId = ctx.chat.id;
@@ -58,7 +81,7 @@ export const showPlayers = async (ctx: Ctx) => {
 
 const MIN_PLAYER_FOR_START = 4;
 
-export const startGame = async (ctx: Ctx) => {
+export const startGame = authGuardMiddleware(async (ctx: Ctx) => {
   const chatId = ctx.chat.id;
 
   try {
@@ -106,7 +129,7 @@ export const startGame = async (ctx: Ctx) => {
   } catch (error) {
     ctx.reply('Произошла ошибка');
   }
-};
+});
 
 type ActionCtx = NarrowedContext<Context<Update> & {
   match: RegExpExecArray;
