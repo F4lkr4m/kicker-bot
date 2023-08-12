@@ -1,100 +1,90 @@
-import { getDatabase, writeDatabase } from "..";
-import { authGuardMiddleware } from "../../middleware";
-import { User } from "../Users/types";
-import { Couple, Room, RoomStatus } from "./types";
 
-export const addRoom = async (roomId: number) => {
-  const room: Room = {
-    id: roomId,
-    players: [],
-    status: 'IDLE',
-  }
-  const db = await getDatabase();
+import { Room } from "./types";
+import { Db, Collection } from 'mongodb';
 
-  if (db.rooms[roomId]) {
-    throw new Error('room already exist');
-  }
-
-  db.rooms[roomId] = room;
-  await writeDatabase(db);
-  console.log('USER CREATED');
+export const ROOM_REPO_ERRORS = {
+  ROOM_ALREADY_EXISTS: 'ROOM_ALREADY_EXISTS',
+  ROOM_NOT_EXISTS: 'ROOM_NOT_EXISTS',
+  USER_NOT_AT_ROOM: 'USER_NOT_AT_ROOM',
+  USER_ALREADY_AT_ROOM: 'USER_ALREADY_AT_ROOM',
 };
 
-export const setRoomStatus = async (id: number, status: RoomStatus) => {
-  const db = await getDatabase();
-  if (!db.rooms[id]) {
-    throw new Error('user not exists')
+export class RoomsRepo {
+  constructor(DB: Db) {
+    this.rooms = DB.collection<Room>('rooms');
+    this.rooms.createIndex({ id: 1 }, { unique: true });
   }
 
-  const room = db.rooms[id];
-  room.status = status;
-  await writeDatabase(db);
-};
+  private rooms: Collection<Room>;
 
-export const addPlayerToRoom = async (id: number, playerId: number) => {
-  const db = await getDatabase();
-  if (!db.rooms[id]) {
-    throw new Error('room not exists')
-  }
-  if (db.rooms[id].players.find((userId) => userId === playerId)) {
-    throw new Error('player already in')
-  }
-
-  const room = db.rooms[id] as Room;
-  room.players = [...room.players, playerId];
-  await writeDatabase(db);
-};
-
-export const removePlayerFromRoom = async (id: number, playerId: number) => {
-  const db = await getDatabase();
-  if (!db.rooms[id]) {
-    throw new Error('room not exists')
-  }
-  db.rooms[id].players =  db.rooms[id].players.filter((userId) => userId !== playerId);
-  await writeDatabase(db);
-};
-
-export const addPlayersToRoom = async (id: number, players: number[]) => {
-  const db = await getDatabase();
-  if (!db.rooms[id]) {
-    throw new Error('user not exists')
-  }
-
-  const room = db.rooms[id] as Room;
-  room.players = [...room.players, ...players];
-  await writeDatabase(db);
-};
-
-export const clearRoom = async (id: number) => {
-  const db = await getDatabase();
-  if (!db.rooms[id]) {
-    throw new Error('user not exists')
-  }
-
-  const room = db.rooms[id] as Room;
-  room.players = [];
-  room.game = undefined;
-  await writeDatabase(db);
-};
-
-export const getRoom = async (id: number): Promise<Room | undefined> => {
-  const db = await getDatabase();
-  if (!db.rooms[id]) {
-    throw new Error('user not exists')
-  }
-
-  return db.rooms[id];
-};
-
-export const setGame = async (roomId: number, first: Couple, second: Couple) => {
-  const db = await getDatabase();
-  if (!db.rooms[roomId]) {
-    throw new Error('room not exists')
-  }
-  const room = db.rooms[roomId] as Room;
-  room.game = {
-    first,
-    second,
+  addRoom = async (room: Room) => {
+    const checkRoom = await this.rooms.findOne({ id: room.id });
+    if (checkRoom) {
+      throw new Error(ROOM_REPO_ERRORS.ROOM_ALREADY_EXISTS);
+    }
+    await this.rooms.insertOne(room);
   };
-  await writeDatabase(db);
-};
+
+  updateRoomState = async (id: Room['id'], state: Room['state']) => {
+    const checkRoom = await this.rooms.findOne({ id });
+    if (!checkRoom) {
+      throw new Error(ROOM_REPO_ERRORS.ROOM_NOT_EXISTS);
+    }
+
+    await this.rooms.updateOne({ id }, { $set: { state }});
+  };
+
+  addPlayerToRoom = async (id: Room['id'], playerId: Room['players'][0]) => {
+    const checkRoom = await this.rooms.findOne({ id });
+    if (!checkRoom) {
+      throw new Error(ROOM_REPO_ERRORS.ROOM_NOT_EXISTS);
+    }
+    if (checkRoom.players.find((plId) => plId === playerId)) {
+      throw new Error(ROOM_REPO_ERRORS.USER_ALREADY_AT_ROOM);
+    }
+
+    await this.rooms.updateOne({ id }, { $push: { players: playerId }});
+  };
+
+  removePlayerFromRoom = async (id: Room['id'], playerId: Room['players'][0]) => {
+    const checkRoom = await this.rooms.findOne({ id });
+    if (!checkRoom) {
+      throw new Error(ROOM_REPO_ERRORS.ROOM_NOT_EXISTS);
+    }
+
+    if (!checkRoom.players.find((plId) => plId === playerId)) {
+      throw new Error(ROOM_REPO_ERRORS.USER_NOT_AT_ROOM);
+    }
+
+    await this.rooms.updateOne({ id }, { $pull: { players: playerId }});
+  }
+
+  setPlayersToRoom = async (id: Room['id'], players: Room['players']) => {
+    const checkRoom = await this.rooms.findOne({ id });
+    if (!checkRoom) {
+      throw new Error(ROOM_REPO_ERRORS.ROOM_NOT_EXISTS);
+    }
+    await this.rooms.updateOne({ id }, { $set: { players }});
+  };
+
+  setFirstPair = async (id: Room['id'], couple: [number, number]) => {
+    await this.rooms.updateOne({ id }, { $set: { first: couple }});
+  };
+
+  setSecondPair = async (id: Room['id'], couple: [number, number]) => {
+    await this.rooms.updateOne({ id }, { $set: { second: couple }});
+  };
+
+  clearPairs = async (id: Room['id']) => {
+    await this.rooms.updateOne({ id }, { $set: { second: undefined, first: undefined }});
+  };
+
+  getRoom = async (id: Room['id']) => {
+    const room = await this.rooms.findOne({ id });
+    if (!room) {
+      throw new Error(ROOM_REPO_ERRORS.ROOM_NOT_EXISTS);
+    }
+
+    return room;
+  }
+}

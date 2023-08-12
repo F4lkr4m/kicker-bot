@@ -1,6 +1,7 @@
+import { Repo } from "../../db"
 import { Ctx } from "../../types"
 
-export const helpCommand = (ctx: Ctx) => {
+export const helpCommand = (database: Repo , ctx: Ctx) => {
   const helpText = `\
   Чак Норрис на связи!\n
   Прочитай эту инструкцию и сможешь как я - делать шпагат на двух летящих самолетах ;)\n

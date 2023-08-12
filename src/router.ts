@@ -1,21 +1,44 @@
 import { Context, Telegraf } from "telegraf";
 import { Update } from "telegraf/typings/core/types/typegram";
 import { helpCommand, meCommand } from "./routes";
-import { testCommand } from "./routes/test";
 import { rollCommand } from "./routes/roll";
-import { addPlayer, clearRoomHandle, createRoom, handleTeamWin, showPlayers, startGame } from "./routes/room";
+import { Repo } from "./db";
+import { test } from "rambda";
+// import { addPlayer, clearRoomHandle, createRoom, handleTeamWin, removePlayer, showPlayers, startGame } from "./routes/room";
+import { enrichHandler } from "./middleware/dbMiddleware";
+import { Ctx } from "./types";
+import { ActionCtx, addPlayer, clearRoomHandle, createRoom, handleTeamWin, removePlayer, replayHandler, showPlayers, startGame } from "./routes/room";
 
-export const routing = (bot: Telegraf<Context<Update>>) => {
-  bot.command('create', createRoom);
-  bot.command('add', addPlayer)
-  bot.command('room', showPlayers);
-  bot.command('start', startGame);
-  bot.command('me', meCommand);
-  bot.command('roll', rollCommand);
-  bot.command('help', helpCommand);
-  bot.command('test', testCommand);
-  bot.command('clear', clearRoomHandle);
+const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | void> = {
+  'me': meCommand,
+  'roll': rollCommand, 
+  'help': helpCommand,
+  'add': addPlayer,
+  'remove': removePlayer,
+  'room': showPlayers,
+  'create': createRoom,
+  'start': startGame, 
+  'clear': clearRoomHandle,
+}
 
-  bot.action('first team win', (ctx) => handleTeamWin(ctx, 'first'));
-  bot.action('second team win', (ctx) => handleTeamWin(ctx, 'second'));
+const ACTIONS: Record<string, (database: Repo, ctx: ActionCtx) => Promise<void> | void> = {
+  'first team win': (database, ctx) => handleTeamWin(database, ctx, 'first'),
+  'second team win': (database, ctx) => handleTeamWin(database, ctx, 'second'),
+  'replay': (database, ctx) => replayHandler(database, ctx)
+}
+
+export const routing = (bot: Telegraf<Context<Update>>, database: Repo) => {
+  Object
+    .entries(COMMANDS)
+    .forEach(([key, handler]) => {
+      const handlerWithDB = enrichHandler(handler, database);
+      bot.command(key, handlerWithDB);
+    });
+
+  Object
+    .entries(ACTIONS)
+    .forEach(([key, handler]) => {
+      const handlerWithDB = enrichHandler(handler, database);
+      bot.action(new RegExp(key), handlerWithDB);
+    });
 };

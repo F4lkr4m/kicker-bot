@@ -1,12 +1,13 @@
 import { compose } from "rambda";
 import { Ctx } from "../../types";
+import { Repo } from "../../db";
 
 
 interface Player {
   name: string,
 }
 
-export const rollCommand = (ctx: Ctx) => {
+export const rollCommand = (database: Repo, ctx: Ctx) => {
   ctx.reply(compose(rollPairs, clearCommandMessage)(ctx.message.text))
 } 
 

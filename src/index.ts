@@ -1,13 +1,16 @@
-import { Markup, Telegraf } from 'telegraf';
-import { compose } from 'rambda';
+import { Telegraf } from 'telegraf';
 import { routing } from './router';
+import { initDB } from './db';
 require('dotenv').config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-routing(bot);
-bot.launch();
+(async () => {
+  const repo = await initDB();
+  routing(bot, repo);
+  bot.launch();
+})()
 
-// Enable graceful stop
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+// // Enable graceful stop
+// process.once('SIGINT', () => bot.stop('SIGINT'));
+// process.once('SIGTERM', () => bot.stop('SIGTERM'));

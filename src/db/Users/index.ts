@@ -1,64 +1,41 @@
-import { getDatabase, writeDatabase } from "..";
 import { User } from "./types";
+import { Db, Collection } from 'mongodb'
 
-export const addUser = async (user: User) => {
-  const { id } = user;
-  const db = await getDatabase();
-
-  if (db.users[id]) {
-    console.error();
-    throw new Error('user already exist');
-  }
-
-  db.users[id] = user;
-  await writeDatabase(db);
-  console.log('USER CREATED');
+export const USER_REPO_ERRORS = {
+  USER_ALREADY_EXISTS: 'USER_ALREADY_EXISTS',
+  USER_NOT_EXISTS: 'USER_NOT_EXISTS',
 };
 
-export const deleteUser = async (id: string) => {
-  const db = await getDatabase();
-  if (!db.users[id]) {
-    console.error('user not exists');
-    return;
+export class UserRepo {
+  constructor(DB: Db) {
+    this.users = DB.collection<User>('users');
+    this.users.createIndex({ id: 1 }, { unique: true });
   }
 
-  db.users = db.users.filter((user) => user.id !== id);
-  await writeDatabase(db);
-  console.log('USER DELETED');
-};
+  private users: Collection<User>;
 
-export const getUser = async (id: number): Promise<User | undefined> => {
-  const db = await getDatabase();
-  if (!db.users[id]) {
-    throw new Error('user not exists')
-  }
+  getUser = async (id: number) => {
+    try {
+      const user = await this.users.findOne({ id });
+      if (!user) {
+        throw new Error(USER_REPO_ERRORS.USER_NOT_EXISTS);
+      }
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  };
 
-  return db.users[id];
-};
-
-const addStatToUser = async (firstId: number, secondId: number, stat: 'wins' | 'loses') => {
-  const db = await getDatabase();
-  if (!db.users[firstId] || !db.users[secondId]) {
-    throw new Error('user not exists')
-  }
-  console.log('ids for setting', firstId, secondId);
-
-  const firstUser = db.users[firstId] as User;
-  const secondUser = db.users[secondId] as User;
-  const coupleWins = firstUser[stat][secondId];
-
-  if (!coupleWins) {
-    
-    firstUser[stat][secondId] = 1;
-    secondUser[stat][firstId] = 1;
-    await writeDatabase(db);
-    return;
-  }
-  firstUser[stat][secondId] += 1;
-  secondUser[stat][firstId] += 1;
-  await writeDatabase(db);
-  return;
-};
-
-export const addWinToUsers = async (firstId: number, secondId: number) => await addStatToUser(firstId, secondId, 'wins');
-export const addLoseToUsers = async (firstId: number, secondId: number) => await addStatToUser(firstId, secondId, 'loses');
+  createUser = async (user: User) => {
+    try {
+      const checkUser = await this.users.findOne({ id: user.id });
+      if (!checkUser) {
+        this.users.insertOne(user);
+        return;
+      }
+      throw new Error(USER_REPO_ERRORS.USER_ALREADY_EXISTS);
+    } catch (error) {
+      throw error;
+    }
+  };
+}
