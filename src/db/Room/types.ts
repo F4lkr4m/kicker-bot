@@ -1,5 +1,3 @@
-import { User } from "../Users/types";
-
 export type RoomState = 'PLAYING' | 'IDLE';
 export type Couple = [number, number];
 

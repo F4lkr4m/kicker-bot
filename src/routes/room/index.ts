@@ -32,7 +32,7 @@ export const createRoom = async (database: Repo, ctx: Ctx) => {
   }
 };
 
-export const clearRoomHandle = async (database: Repo, ctx: Ctx)  => {
+export const clearRoomHandle = async (database: Repo, ctx: Ctx) => {
   const chatId = ctx.chat.id;
   const room = await database.roomRepo.getRoom(chatId);
   if (room.state === 'PLAYING') {
@@ -54,7 +54,7 @@ export const removePlayer = authGuardMiddleware(async (database: Repo, ctx: Ctx)
   try {
     await database.roomRepo.removePlayerFromRoom(id, playerId);
     ctx.reply('Вы вышли из комнаты');
-  } catch(error) {
+  } catch (error) {
     ctx.reply('Произошла ошибка');
   }
 });
@@ -80,7 +80,7 @@ export const showPlayers = async (database: Repo, ctx: Ctx) => {
   try {
     const room = await database.roomRepo.getRoom(chatId);
     let acc = '';
-    for (let playerId of room.players) {
+    for (const playerId of room.players) {
       const player = await database.userRepo.getUser(playerId);
       acc = `${acc} ${getMentionOfUser(player.id, player.name)}`;
     }
@@ -114,8 +114,8 @@ export const startGame = authGuardMiddleware(async (database: Repo, ctx: Ctx) =>
     }
 
     const { players } = room;
-    const firstPair = compose(selectPlayer<number>, selectPlayer<number>)({ others: players, selected: []});
-    const secondPair = compose(selectPlayer<number>, selectPlayer<number>)({ others: firstPair.others, selected: []});
+    const firstPair = compose(selectPlayer<number>, selectPlayer<number>)({ others: players, selected: [] });
+    const secondPair = compose(selectPlayer<number>, selectPlayer<number>)({ others: firstPair.others, selected: [] });
 
     const firstCouple: Couple = [firstPair.selected[0], firstPair.selected[1]];
     const secondCouple: Couple = [secondPair.selected[0], secondPair.selected[1]];
@@ -137,7 +137,7 @@ export const startGame = authGuardMiddleware(async (database: Repo, ctx: Ctx) =>
       {
         reply_markup: {
           inline_keyboard: [
-            [ { text: `${first.name}\n & \n${second.name}`, callback_data: "first team win" }, { text: `${third.name}\n & \n${fouth.name}`, callback_data: "second team win" } ],
+            [{ text: `${first.name}\n & \n${second.name}`, callback_data: "first team win" }, { text: `${third.name}\n & \n${fouth.name}`, callback_data: "second team win" }],
           ]
         }
       }
@@ -193,17 +193,17 @@ export const handleTeamWin = async (database: Repo, ctx: ActionCtx, team: 'first
   }
 
   ctx.replyWithHTML(
-    team === 'first' 
+    team === 'first'
       ? await addGameToHistoryAndGetReply([id1, id2], [id3, id4])
       : await addGameToHistoryAndGetReply([id3, id4], [id1, id2]),
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: `Взять реванш!`, callback_data: `replay?id1=${id1}&id2=${id2}&id3=${id3}&id4=${id4}` }],
-          ]
-        }
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: `Взять реванш!`, callback_data: `replay?id1=${id1}&id2=${id2}&id3=${id3}&id4=${id4}` }],
+        ]
       }
-      );
+    }
+  );
 };
 
 export const replayHandler = async (database: Repo, ctx: ActionCtx) => {
@@ -239,7 +239,7 @@ export const replayHandler = async (database: Repo, ctx: ActionCtx) => {
     {
       reply_markup: {
         inline_keyboard: [
-          [ { text: `${first.name}\n & \n${second.name}`, callback_data: "first team win" }, { text: `${third.name}\n & \n${fouth.name}`, callback_data: "second team win" } ],
+          [{ text: `${first.name}\n & \n${second.name}`, callback_data: "first team win" }, { text: `${third.name}\n & \n${fouth.name}`, callback_data: "second team win" }],
         ]
       }
     }

@@ -3,21 +3,19 @@ import { Update } from "telegraf/typings/core/types/typegram";
 import { helpCommand, meCommand } from "./routes";
 import { rollCommand } from "./routes/roll";
 import { Repo } from "./db";
-import { test } from "rambda";
-// import { addPlayer, clearRoomHandle, createRoom, handleTeamWin, removePlayer, showPlayers, startGame } from "./routes/room";
 import { enrichHandler } from "./middleware/dbMiddleware";
 import { Ctx } from "./types";
 import { ActionCtx, addPlayer, clearRoomHandle, createRoom, handleTeamWin, removePlayer, replayHandler, showPlayers, startGame } from "./routes/room";
 
 const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | void> = {
   'me': meCommand,
-  'roll': rollCommand, 
+  'roll': rollCommand,
   'help': helpCommand,
   'add': addPlayer,
   'remove': removePlayer,
   'room': showPlayers,
   'create': createRoom,
-  'start': startGame, 
+  'start': startGame,
   'clear': clearRoomHandle,
 }
 

@@ -15,27 +15,19 @@ export class UserRepo {
   private users: Collection<User>;
 
   getUser = async (id: number) => {
-    try {
-      const user = await this.users.findOne({ id });
-      if (!user) {
-        throw new Error(USER_REPO_ERRORS.USER_NOT_EXISTS);
-      }
-      return user;
-    } catch (error) {
-      throw error;
+    const user = await this.users.findOne({ id });
+    if (!user) {
+      throw new Error(USER_REPO_ERRORS.USER_NOT_EXISTS);
     }
+    return user;
   };
 
   createUser = async (user: User) => {
-    try {
-      const checkUser = await this.users.findOne({ id: user.id });
-      if (!checkUser) {
-        this.users.insertOne(user);
-        return;
-      }
-      throw new Error(USER_REPO_ERRORS.USER_ALREADY_EXISTS);
-    } catch (error) {
-      throw error;
+    const checkUser = await this.users.findOne({ id: user.id });
+    if (!checkUser) {
+      this.users.insertOne(user);
+      return;
     }
+    throw new Error(USER_REPO_ERRORS.USER_ALREADY_EXISTS);
   };
 }

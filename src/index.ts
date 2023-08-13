@@ -1,7 +1,8 @@
 import { Telegraf } from 'telegraf';
 import { routing } from './router';
 import { initDB } from './db';
-require('dotenv').config();
+import { config } from 'dotenv';
+config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 

@@ -1,4 +1,3 @@
-import { getDatabase, writeDatabase } from "..";
 import { Db, Collection } from 'mongodb'
 import { Game } from "./types";
 
@@ -23,7 +22,7 @@ export class GameHistoryRepo {
   }
 
   getGamesForUserAndChat = (chatId: number, userId: number) => {
-    return this.games.find({ chatId, $or: [{ winners: userId }, { losers: userId }]}).toArray();
+    return this.games.find({ chatId, $or: [{ winners: userId }, { losers: userId }] }).toArray();
   }
 
   getWinsForUser = (userId: number) => {

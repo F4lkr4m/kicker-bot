@@ -1,7 +1,7 @@
 import { Repo } from "../../db"
 import { Ctx } from "../../types"
 
-export const helpCommand = (database: Repo , ctx: Ctx) => {
+export const helpCommand = (database: Repo, ctx: Ctx) => {
   const helpText = `\
   Чак Норрис на связи!\n
   Прочитай эту инструкцию и сможешь как я - делать шпагат на двух летящих самолетах ;)\n
@@ -14,5 +14,5 @@ export const helpCommand = (database: Repo , ctx: Ctx) => {
   /clear - очистить комнату
   /remove - выйти из комнаты 
 `
-ctx.replyWithHTML(helpText)
+  ctx.replyWithHTML(helpText)
 }

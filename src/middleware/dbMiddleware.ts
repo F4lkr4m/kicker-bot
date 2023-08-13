@@ -1,4 +1,4 @@
-import { Ctx, CtxWithDatabase } from "../types";
+import { Ctx } from "../types";
 import { Repo } from "../db";
 import { ActionCtx } from "../routes/room";
 
