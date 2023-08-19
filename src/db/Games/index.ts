@@ -17,20 +17,53 @@ export class GameHistoryRepo {
     await this.games.insertOne(game)
   }
 
-  getGamesForChat = (chatId: number) => {
-    return this.games.find({ chatId });
+  getGamesForChat = async (chatId: number, date?: Date) => {
+    if (date) {
+      return this.games.find({
+        $and: [
+          {
+            chatId,
+          },
+          {
+            date: {
+              $gt: date,
+            }
+          }
+        ]
+      }).toArray();
+    }
+
+    return this.games.find({ chatId }).toArray();
   }
 
   getGamesForUserAndChat = (chatId: number, userId: number) => {
     return this.games.find({ chatId, $or: [{ winners: userId }, { losers: userId }] }).toArray();
   }
 
-  getWinsForUser = (userId: number) => {
-    return this.games.countDocuments({ "winners": userId });
+  getWinsForUser = (userId: number, date?: Date) => {
+    return this.games.countDocuments({
+      winners: userId,
+      ...(date
+        ? {
+          date: {
+            $gt: date,
+          }
+        }
+        : {})
+    });
   }
 
-  getLosesForUser = (userId: number) => {
-    return this.games.countDocuments({ "losers": userId });
+  getLosesForUser = (userId: number, date?: Date) => {
+    return this.games.countDocuments({
+      losers: userId,
+      ...(date
+        ? {
+          date: {
+            $gt: date,
+          }
+        }
+        : {})
+    });
   }
 
   getWinsForPair = async (id1: number, id2: number) => {

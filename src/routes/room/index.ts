@@ -10,6 +10,8 @@ import { Context, NarrowedContext } from "telegraf";
 import { CallbackQuery, Update } from "telegraf/typings/core/types/typegram";
 import { Game } from "../../db/Games/types";
 import { URLSearchParams } from "url";
+import { USER_REPO_ERRORS } from "../../db/Users";
+import { User } from "../../db/Users/types";
 
 export const createRoom = async (database: Repo, ctx: Ctx) => {
   const chatId = ctx.chat.id;
@@ -62,16 +64,50 @@ export const removePlayer = authGuardMiddleware(async (database: Repo, ctx: Ctx)
 export const addPlayer = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
   const chatId = ctx.chat.id;
   const userId = ctx.message.from.id;
-  try {
+  const message = ctx.message.text;
 
+  const [, ...text] = message.split(' ');
+
+  let addingOtherUsersText = '';
+  if (text.length) {
+    const usersToAdd: User[] = [];
+    for (const elem of text) {
+      if (elem.startsWith('@')) {
+        const username = elem.slice(1);
+        try {
+          const userToAdd = await database.userRepo.getUserByUsername(username);
+          usersToAdd.push(userToAdd);
+        } catch (error) {
+          if (error.message === USER_REPO_ERRORS.USER_NOT_EXISTS) {
+            addingOtherUsersText += `Пользователь с ником ${username} не был найден\n`;
+          }
+        }
+      }
+    }
+
+    for (const addingUser of usersToAdd) {
+      try {
+        await database.roomRepo.addPlayerToRoom(chatId, addingUser.id);
+        addingOtherUsersText += `Пользователь с ником ${addingUser.username} добавлен в комнату\n`;
+      } catch (error) {
+        if (error.message === ROOM_REPO_ERRORS.USER_ALREADY_AT_ROOM) {
+          addingOtherUsersText += `Пользователь с ником ${addingUser.username} уже состоит в комнате\n`;
+        } else {
+          addingOtherUsersText += `Пользователь с ником ${addingUser.username} по неизвестной причине не был добавлен в комнату\n`;
+        }
+      }
+    }
+  }
+
+  try {
     await database.roomRepo.addPlayerToRoom(chatId, userId);
-    ctx.reply('Пользователь добавлен в комнату');
+    ctx.reply(`Вы были успешно добавлены в комнату\n${addingOtherUsersText}`);
   } catch (error) {
     if (error.message === ROOM_REPO_ERRORS.USER_ALREADY_AT_ROOM) {
-      ctx.reply('Пользователь уже состоит в комнате');
+      ctx.reply(`Вы уже состоите в комнате\n${addingOtherUsersText}`);
       return;
     }
-    ctx.reply('Произошла ошибка');
+    ctx.reply(`Произошла ошибка, вы не были добавлены в комнату\n${addingOtherUsersText}`);
   }
 });
 

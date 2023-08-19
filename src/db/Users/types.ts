@@ -7,7 +7,7 @@ export interface Statistic {
 }
 
 export interface User {
-  id: number,
+  id: UserId,
   name: string,
-  statistics: Partial<Record<UserId, Statistic>>
+  username?: string,
 }

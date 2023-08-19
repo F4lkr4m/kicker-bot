@@ -13,6 +13,8 @@ export const helpCommand = (database: Repo, ctx: Ctx) => {
   /me - личная статистика
   /clear - очистить комнату
   /remove - выйти из комнаты 
+  /leaders - список лидеров за все время,
+  /leadersWeekly - список лидеров за неделю (с момента начала недели),
 `
   ctx.replyWithHTML(helpText)
 }

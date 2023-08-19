@@ -2,6 +2,7 @@ import { authGuardMiddleware } from "../../middleware";
 import { Ctx } from "../../types";
 import { getMentionOfUser } from "../../utils/getMentionOfUser";
 import { Repo } from "../../db";
+import { getWinrate } from "../../utils/getWinrateByUserId";
 
 
 export const meCommand = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
@@ -28,12 +29,10 @@ export const getUserStatById = async (database: Repo, chatId: number, id: number
       const ally = await database.userRepo.getUser(allyId);
       const wins = await database.historyRepo.getWinsForPair(allyId, id);
       const loses = await database.historyRepo.getLosesForPair(allyId, id);
-      reply = reply.concat(`${getMentionOfUser(ally.id, ally.name)} - ${wins} / ${loses}\n`);
+      reply = reply.concat(`<b>${ally.name}</b> - ${wins} / ${loses}\n`);
     }
 
-    const allWins = await database.historyRepo.getWinsForUser(id);
-    const allLoses = await database.historyRepo.getLosesForUser(id);
-    const winrate = (((allWins) / (allWins + allLoses)) * 100).toFixed();
+    const winrate = (await getWinrate(database.historyRepo, id)).toFixed();
 
     reply = reply.concat(`\nПроцент побед: ${isNaN(+winrate) ? 0 : winrate} %`);
     return reply;

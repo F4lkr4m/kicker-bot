@@ -1,5 +1,5 @@
 import { Repo } from "../db";
-import { USER_REPO_ERRORS,  } from "../db/Users";
+import { USER_REPO_ERRORS, } from "../db/Users";
 import { User } from "../db/Users/types";
 import { Ctx } from "../types";
 
@@ -7,13 +7,20 @@ export const authGuardMiddleware = (handler: (database: Repo, ctx: Ctx) => Promi
   return async (database: Repo, ctx: Ctx) => {
     const id = ctx.message.from.id;
     try {
-      await database.userRepo.getUser(id);
+      const user = await database.userRepo.getUser(id);
+      if (ctx.from.username && !user.username) {
+        const updatedUser: User = {
+          ...user,
+          username: ctx.from.username,
+        }
+        database.userRepo.udpateUser(updatedUser);
+      }
     } catch (error) {
       if (error.message === USER_REPO_ERRORS.USER_NOT_EXISTS) {
         const newUser: User = {
           id,
-          statistics: {},
           name: ctx.message.from.first_name,
+          username: ctx.from.username,
         }
         await database.userRepo.createUser(newUser);
       }

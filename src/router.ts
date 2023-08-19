@@ -6,6 +6,7 @@ import { Repo } from "./db";
 import { enrichHandler } from "./middleware/dbMiddleware";
 import { Ctx } from "./types";
 import { ActionCtx, addPlayer, clearRoomHandle, createRoom, handleTeamWin, removePlayer, replayHandler, showPlayers, startGame } from "./routes/room";
+import { getLeaderBoardTotal, getLeaderBoardWeekly } from "./routes/leaderBoard";
 
 const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | void> = {
   'me': meCommand,
@@ -17,6 +18,8 @@ const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | voi
   'create': createRoom,
   'start': startGame,
   'clear': clearRoomHandle,
+  'leaders': getLeaderBoardTotal,
+  'leadersWeekly': getLeaderBoardWeekly,
 }
 
 const ACTIONS: Record<string, (database: Repo, ctx: ActionCtx) => Promise<void> | void> = {

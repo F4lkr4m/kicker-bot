@@ -22,6 +22,14 @@ export class UserRepo {
     return user;
   };
 
+  getUserByUsername = async (username: string) => {
+    const user = await this.users.findOne({ username });
+    if (!user) {
+      throw new Error(USER_REPO_ERRORS.USER_NOT_EXISTS);
+    }
+    return user;
+  }
+
   createUser = async (user: User) => {
     const checkUser = await this.users.findOne({ id: user.id });
     if (!checkUser) {
@@ -30,4 +38,9 @@ export class UserRepo {
     }
     throw new Error(USER_REPO_ERRORS.USER_ALREADY_EXISTS);
   };
+
+  udpateUser = async (user: User) => {
+    const { id, ...restData } = user;
+    await this.users.updateOne({ id }, { $set: restData });
+  }
 }
