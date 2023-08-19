@@ -36,13 +36,25 @@ export class GameHistoryRepo {
     return this.games.find({ chatId }).toArray();
   }
 
-  getGamesForUserAndChat = (chatId: number, userId: number) => {
-    return this.games.find({ chatId, $or: [{ winners: userId }, { losers: userId }] }).toArray();
+  getGamesForUserAndChat = (chatId: number, userId: number, date?: Date, limit?: number) => {
+    let query = this.games.find({
+      chatId,
+      ...(date ? { date: { $gt: date } } : {}),
+      $or: [{ winners: userId }, { losers: userId }]
+    });
+    if (date) {
+      query = query.sort({ date: -1 });
+    }
+    if (limit) {
+      query.limit(limit);
+    }
+    return query.toArray();
   }
 
-  getWinsForUser = (userId: number, date?: Date) => {
+  getWinsForUser = (userId: number, chatId: number, date?: Date) => {
     return this.games.countDocuments({
       winners: userId,
+      chatId,
       ...(date
         ? {
           date: {
@@ -53,9 +65,10 @@ export class GameHistoryRepo {
     });
   }
 
-  getLosesForUser = (userId: number, date?: Date) => {
+  getLosesForUser = (userId: number, chatId: number, date?: Date) => {
     return this.games.countDocuments({
       losers: userId,
+      chatId,
       ...(date
         ? {
           date: {

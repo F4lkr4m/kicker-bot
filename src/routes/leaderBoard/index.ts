@@ -52,7 +52,7 @@ const getLeaderBoard = async (props: GetLeaderBoardProps) => {
     const winrates: UserWithWinrate[] = []
     for (const playerId of uniqPlayers) {
       const user = await database.userRepo.getUser(playerId);
-      const winrate = await getWinrate(database.historyRepo, playerId, date);
+      const winrate = await getWinrate(database.historyRepo, playerId, chatId, date);
       winrates.push({ ...user, winrate });
     }
     winrates.sort((a, b) => b.winrate - a.winrate);

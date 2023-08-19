@@ -3,6 +3,9 @@ import { Ctx } from "../../types";
 import { getMentionOfUser } from "../../utils/getMentionOfUser";
 import { Repo } from "../../db";
 import { getWinrate } from "../../utils/getWinrateByUserId";
+import { getMondayFromDate } from "../../utils/getMondayFromDate";
+import { User } from "../../db/Users/types";
+import { format } from 'date-fns';
 
 
 export const meCommand = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
@@ -32,11 +35,51 @@ export const getUserStatById = async (database: Repo, chatId: number, id: number
       reply = reply.concat(`<b>${ally.name}</b> - ${wins} / ${loses}\n`);
     }
 
-    const winrate = (await getWinrate(database.historyRepo, id)).toFixed();
+    const weekAgo = getMondayFromDate(new Date());
+    weekAgo.setUTCHours(0, 0, 0, 0);
 
+    const last10Games = await database.historyRepo.getGamesForUserAndChat(
+      chatId,
+      id,
+      weekAgo,
+      10
+    );
+
+    let historyReply = '\n<b>Последние 10 игр:</b>\n';
+    const usersMap = new Map<number, User>();
+    let index = 0;
+    for (const game of last10Games) {
+      index++;
+      const players = [...game.losers, ...game.winners];
+      for (const playerId of players) {
+        if (usersMap.has(playerId)) { continue; }
+        const player = await database.userRepo.getUser(playerId);
+        usersMap.set(playerId, player);
+      }
+
+
+      const [id1, id2] = game.winners;
+      const [id3, id4] = game.losers;
+
+      const user1 = usersMap.get(id1);
+      const user2 = usersMap.get(id2);
+      const user3 = usersMap.get(id3);
+      const user4 = usersMap.get(id4);
+      console.log(user1, user2, user3, user4);
+
+      const date = format(new Date(game.date), 'dd/MM/yyyy');
+
+      const isWinner = Boolean(game.winners.includes(id));
+      const gameResultText = isWinner ? '✅' : '❌'
+
+      historyReply += `${index} - ${gameResultText} ${date} ${user1.name} & ${user2.name} <b>VS</b> ${user3.name} & ${user4.name}\n`;
+    }
+    const winrate = (await getWinrate(database.historyRepo, id, chatId)).toFixed();
+    reply = reply.concat(`${historyReply}\n`);
     reply = reply.concat(`\nПроцент побед: ${isNaN(+winrate) ? 0 : winrate} %`);
     return reply;
   } catch (error) {
+    console.log(error);
     return 'Произошла ошибка'
   }
 }
