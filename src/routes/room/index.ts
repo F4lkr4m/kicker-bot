@@ -173,7 +173,16 @@ export const startGame = authGuardMiddleware(async (database: Repo, ctx: Ctx) =>
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: `${first.name}\n & \n${second.name}`, callback_data: "first team win" }, { text: `${third.name}\n & \n${fouth.name}`, callback_data: "second team win" }],
+            [
+              {
+                text: `${first.name}\n & \n${second.name}`,
+                callback_data: "first team win"
+              },
+              {
+                text: `${third.name}\n & \n${fouth.name}`,
+                callback_data: "second team win"
+              }
+            ],
           ]
         }
       }

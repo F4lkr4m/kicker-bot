@@ -1,16 +1,13 @@
 import { compose } from "rambda";
 import { Ctx } from "../../types";
 import { Repo } from "../../db";
+import { randomInt } from 'crypto'
 
 export const rollCommand = (database: Repo, ctx: Ctx) => {
   ctx.reply(compose(rollPairs, clearCommandMessage)(ctx.message.text))
 }
 
-const getRandomInt = (min: number, max: number, random = Math.random()) => {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(random * (max - min) + min);
-}
+const getRandomInt = (min: number, max: number) => randomInt(min, max);
 
 interface SelectedPlayers<T> {
   selected: T[],

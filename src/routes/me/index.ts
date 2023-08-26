@@ -65,7 +65,6 @@ export const getUserStatById = async (database: Repo, chatId: number, id: number
       const user2 = usersMap.get(id2);
       const user3 = usersMap.get(id3);
       const user4 = usersMap.get(id4);
-      console.log(user1, user2, user3, user4);
 
       const date = format(new Date(game.date), 'dd/MM/yyyy');
 
