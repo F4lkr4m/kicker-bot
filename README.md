@@ -21,6 +21,6 @@ MONGO_URI=########
 
 ```
   $ npm install
-  $ docker run --name some-mongo -p 27017:27017 -d
+  $ docker run --name some-mongo -d -p 27017:27017 mongo:latest
   $ npm start
 ```
