@@ -24,3 +24,10 @@ MONGO_URI=########
   $ docker run --name some-mongo -d -p 27017:27017 mongo:latest
   $ npm start
 ```
+
+## Другой быстрый запуск
+Перед запуском необходимо добавить переменную окружения, а потом запустить докер
+```
+  export BOT_TOKEN=YOUR_BOT_TOKEN
+  docker-compose up
+```
