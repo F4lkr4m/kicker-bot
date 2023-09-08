@@ -1,0 +1,27 @@
+version: '3.9'
+
+volumes:
+  mongo-kicker-data:
+    name: 'mongo-kicker-data'
+
+services:
+  kicker_bot:
+    restart: unless-stopped
+    depends_on:
+      - mongo-db
+    build: .
+    environment:
+      MONGO_URI: 'mongodb://root:Qwerty123!@mongo-db'
+      BOT_TOKEN: $BOT_TOKEN
+
+  mongo-db:
+    image: mongo
+    restart: unless-stopped
+    volumes:
+      - mongo-kicker-data:/data/db
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: Qwerty123!
+      MONGO_DATA_DIR: /data/db
