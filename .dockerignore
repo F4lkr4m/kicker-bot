@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.idea/
 build/
 .env
 db.json
