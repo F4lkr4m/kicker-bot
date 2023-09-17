@@ -7,11 +7,20 @@ import { Ctx } from "../../types";
 import { getMentionOfUser } from "../../utils/getMentionOfUser";
 import { selectPlayer } from "../roll";
 import { Context, NarrowedContext } from "telegraf";
-import { CallbackQuery, Update } from "telegraf/typings/core/types/typegram";
+import {
+  CallbackQuery,
+  InlineKeyboardButton,
+  Update,
+} from 'telegraf/typings/core/types/typegram';
 import { Game } from "../../db/Games/types";
 import { URLSearchParams } from "url";
 import { USER_REPO_ERRORS } from "../../db/Users";
 import { User } from "../../db/Users/types";
+import { getTeamMsg } from "../../utils/getTeamMsg";
+import { resolveCouple } from "../../utils/resolveCouple";
+import { getReplyFromGame } from "../../utils/getReplyFromGame";
+import { MAX_PLAYER_FOR_START, MIN_PLAYER_FOR_START } from '../constants';
+
 
 export const createRoom = async (database: Repo, ctx: Ctx) => {
   const chatId = ctx.chat.id;
@@ -49,7 +58,7 @@ export const clearRoomHandle = async (database: Repo, ctx: Ctx) => {
   }
 };
 
-export const removePlayer = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
+export const exitCommand = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
   const id = ctx.chat.id;
   const playerId = ctx.message.from.id;
 
@@ -60,6 +69,111 @@ export const removePlayer = authGuardMiddleware(async (database: Repo, ctx: Ctx)
     ctx.reply('Произошла ошибка');
   }
 });
+
+export const removeCommand = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
+  const chatId = ctx.chat.id;
+  const message = ctx.message.text;
+  const [, ...text] = message.split(' ');
+
+  if (text.length) {
+    let reply = '';
+    const usersToRemove: User[] = [];
+    for (const elem of text) {
+      if (elem.startsWith('@')) {
+        const username = elem.slice(1);
+        try {
+          const userToRemove = await database.userRepo.getUserByUsername(username);
+          usersToRemove.push(userToRemove);
+        } catch (error) {
+          if (error.message === USER_REPO_ERRORS.USER_NOT_EXISTS) {
+            reply += `Пользователь ${username} не был найден\n`;
+          }
+        }
+      }
+    }
+
+    for (const removingUser of usersToRemove) {
+      try {
+        await database.roomRepo.removePlayerFromRoom(chatId, removingUser.id);
+        reply += `Пользователь ${removingUser.username} удалён из комнаты\n`;
+      } catch (error) {
+        if (error.message === ROOM_REPO_ERRORS.USER_NOT_AT_ROOM) {
+          reply += `Пользователя ${removingUser.username} нет в комнате\n`;
+        } else {
+          reply += `Пользователь ${removingUser.username} по неизвестной причине не был удалён из комнаты\n`;
+        }
+      }
+    }
+
+    ctx.reply(reply);
+    return;
+  }
+
+  try {
+    const room = await database.roomRepo.getRoom(chatId);
+    if (!room.players.length) {
+      ctx.reply('В комнате нет игроков');
+      return;
+    }
+
+    const playersArr = [];
+    for (const playerId of room.players) {
+      const player = await database.userRepo.getUser(playerId);
+      playersArr.push([player.id, player.name]);
+    }
+
+    const buttonPlayers: InlineKeyboardButton[][] = playersArr.map(
+        ([playerId, playerName]) => ([{
+          text: playerName,
+          callback_data: `remove player?id=${playerId}`,
+        }])
+    );
+
+    ctx.replyWithHTML(
+    'Кого необходимо удалить из комнаты?',
+      {
+        reply_markup: {
+          inline_keyboard: buttonPlayers
+        },
+      }
+    )
+  } catch (e) {
+    ctx.reply('Произошла ошибка');
+  }
+});
+
+export const removePlayerAction = async (database: Repo, ctx: ActionCtx) => {
+  try {
+    const chatId = ctx.chat.id;
+    const clbQuery = ctx.update.callback_query;
+
+    if (!('data' in clbQuery)) {
+      ctx.reply('Произошла ошибка');
+      return;
+    }
+    const query = clbQuery.data;
+    const indexOfParamsStart = query.indexOf('?') + 1;
+    const params = query.slice(indexOfParamsStart);
+    const urlParams = new URLSearchParams(params);
+    const paramsObject = Object.fromEntries(urlParams);
+    const playerId = +paramsObject.id
+
+    const userToRemove = await database.userRepo.getUser(playerId);
+    try {
+      await database.roomRepo.removePlayerFromRoom(chatId, userToRemove.id);
+      ctx.reply(`Пользователь ${userToRemove.username} удалён из комнаты`);
+    } catch (error) {
+      if (error.message === ROOM_REPO_ERRORS.USER_NOT_AT_ROOM) {
+        ctx.reply(`Пользователя ${userToRemove.username} нет в комнате`);
+      } else {
+        ctx.reply(`Пользователь ${userToRemove.username} по неизвестной причине не был удалён из комнаты`);
+      }
+    }
+
+  } catch (e) {
+    ctx.reply('Произошла ошибка');
+  }
+}
 
 export const addPlayer = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
   const chatId = ctx.chat.id;
@@ -115,12 +229,46 @@ export const showPlayers = async (database: Repo, ctx: Ctx) => {
   const chatId = ctx.chat.id;
   try {
     const room = await database.roomRepo.getRoom(chatId);
-    let acc = '';
+    const playersArr = [];
     for (const playerId of room.players) {
       const player = await database.userRepo.getUser(playerId);
-      acc = `${acc} ${getMentionOfUser(player.id, player.name)}`;
+      playersArr.push(getMentionOfUser(player.id, player.name));
     }
-    ctx.replyWithHTML(`Список игроков в комнате: ${acc}`);
+    const playersList = '\t' + playersArr.join('\n\t');
+    const total = `\nВсего: ${room.players.length}`;
+
+    let helperText = '';
+    if (room.players.length < MIN_PLAYER_FOR_START) {
+      helperText += '\nДля игры необходимо минимум 2 игрока (а лучше 4).'
+      helperText += '\nДобавляйтесь: /add';
+    }
+    if (room.players.length > MAX_PLAYER_FOR_START) {
+      helperText += '\nДля игры необходимо максимум 4 игрока.';
+      helperText += '\nКому-то придется выйти: /remove';
+    }
+    if (room.players.length !== MIN_PLAYER_FOR_START && room.players.length !== MAX_PLAYER_FOR_START) {
+      helperText += '\nНи туда ни сюда.';
+      helperText += '\nКажется одного не хватает: /add';
+    }
+    const replyTitle = 'Список игроков в комнате:';
+    const reply = [
+        replyTitle,
+        playersList,
+        total,
+        helperText,
+    ].join('\n');
+
+    const replyOptions = (room.players.length === MIN_PLAYER_FOR_START || room.players.length === MAX_PLAYER_FOR_START)
+      ? {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Начать игру', callback_data: "start game" }],
+          ],
+        },
+      }
+    : undefined;
+    ctx.replyWithHTML(reply, replyOptions);
+
   } catch (error) {
     if (error.message === ROOM_REPO_ERRORS.ROOM_NOT_EXISTS) {
       ctx.reply('Комнаты не существует');
@@ -130,9 +278,7 @@ export const showPlayers = async (database: Repo, ctx: Ctx) => {
   }
 };
 
-const MIN_PLAYER_FOR_START = 4;
-
-export const startGame = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
+export const startGame = async (database: Repo, ctx: Ctx | ActionCtx) => {
   const chatId = ctx.chat.id;
   try {
     const room = await database.roomRepo.getRoom(chatId);
@@ -140,57 +286,41 @@ export const startGame = authGuardMiddleware(async (database: Repo, ctx: Ctx) =>
       ctx.reply('Игра уже началась');
       return;
     }
+    if (room.players.length % 2 === 1) {
+      ctx.reply('Необходимо четное количество игроков');
+      return;
+    }
     if (room.players.length < MIN_PLAYER_FOR_START) {
       ctx.reply('Недостаточно игроков для начала игры');
       return;
     }
-    if (room.players.length > MIN_PLAYER_FOR_START) {
+    if (room.players.length > MAX_PLAYER_FOR_START) {
       ctx.reply('Слишком много игроков для начала игры');
       return;
     }
 
     const { players } = room;
-    const firstPair = compose(selectPlayer<number>, selectPlayer<number>)({ others: players, selected: [] });
-    const secondPair = compose(selectPlayer<number>, selectPlayer<number>)({ others: firstPair.others, selected: [] });
+    const isPvP = players.length === 2;
 
-    const firstCouple: Couple = [firstPair.selected[0], firstPair.selected[1]];
-    const secondCouple: Couple = [secondPair.selected[0], secondPair.selected[1]];
-    await database.roomRepo.setFirstPair(chatId, firstCouple);
-    await database.roomRepo.setSecondPair(chatId, secondCouple);
-    await database.roomRepo.updateRoomState(chatId, 'PLAYING');
+    const firstPair = isPvP
+        ? { others: [players[1]], selected: [players[0]] }
+        : compose(selectPlayer<number>, selectPlayer<number>)({ others: players, selected: [] });
+    const secondPair = isPvP
+        ? { others: [], selected: [players[1]] }
+        : compose(selectPlayer<number>, selectPlayer<number>)({ others: firstPair.others, selected: [] });
 
-    const first = await database.userRepo.getUser(firstPair.selected[0]);
-    const second = await database.userRepo.getUser(firstPair.selected[1]);
-    const third = await database.userRepo.getUser(secondPair.selected[0]);
-    const fouth = await database.userRepo.getUser(secondPair.selected[1]);
+    const firstCouple: Couple = resolveCouple(firstPair.selected);
+    const secondCouple: Couple = resolveCouple(secondPair.selected);
 
-    const reply = `Играют:
-    Первая команда: ${getMentionOfUser(first.id, first.name)} ${getMentionOfUser(second.id, second.name)}
-    Вторая команда: ${getMentionOfUser(third.id, third.name)} ${getMentionOfUser(fouth.id, fouth.name)}\nКто победил?
-    `
-    ctx.replyWithHTML(
-      reply,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: `${first.name}\n & \n${second.name}`,
-                callback_data: "first team win"
-              },
-              {
-                text: `${third.name}\n & \n${fouth.name}`,
-                callback_data: "second team win"
-              }
-            ],
-          ]
-        }
-      }
-    );
+    const { reply, replyOptions } = await getReplyFromGame(database, chatId, firstCouple, secondCouple);
+
+    ctx.replyWithHTML(reply, replyOptions);
   } catch (error) {
-    ctx.reply('Произошла ошибка');
+    ctx.replyWithHTML('Произошла ошибка');
   }
-});
+};
+
+export const startCommand = authGuardMiddleware(startGame);
 
 export type ActionCtx = NarrowedContext<Context<Update> & {
   match: RegExpExecArray;
@@ -217,8 +347,8 @@ export const handleTeamWin = async (database: Repo, ctx: ActionCtx, team: 'first
     const game: Game = {
       chatId,
       date: new Date(Date.now()),
-      winners: [id1, id2],
-      losers: [id3, id4],
+      winners: resolveCouple([id1, id2]),
+      losers: resolveCouple([id3, id4]),
     }
     await database.historyRepo.addGame(game);
     await database.roomRepo.clearPairs(chatId);
@@ -226,14 +356,29 @@ export const handleTeamWin = async (database: Repo, ctx: ActionCtx, team: 'first
     await database.roomRepo.updateRoomState(chatId, 'IDLE');
 
     const winner1 = await database.userRepo.getUser(id1);
-    const winner2 = await database.userRepo.getUser(id2);
+    const winner2 = id2
+        ? await database.userRepo.getUser(id2)
+        : undefined;
     const loser1 = await database.userRepo.getUser(id3);
-    const loser2 = await database.userRepo.getUser(id4);
+    const loser2 = id4
+        ? await database.userRepo.getUser(id4)
+        : undefined;
+
+    const winnerMsg = getTeamMsg(
+        getMentionOfUser(winner1.id, winner1.name),
+        getMentionOfUser(winner2?.id, winner2?.name),
+        !id2
+    );
+    const looserMsg = getTeamMsg(
+        getMentionOfUser(loser1.id, loser1.name),
+        getMentionOfUser(loser2?.id, loser2?.name),
+        !id4
+    );
 
     return `
       Очки засчитаны
-      Победили ${getMentionOfUser(winner1.id, winner1.name)} & ${getMentionOfUser(winner2.id, winner2.name)}
-      Проиграли ${getMentionOfUser(loser1.id, loser1.name)} & ${getMentionOfUser(loser2.id, loser2.name)}
+      Победили ${winnerMsg}
+      Проиграли ${looserMsg}
     `;
   }
 
@@ -252,41 +397,44 @@ export const handleTeamWin = async (database: Repo, ctx: ActionCtx, team: 'first
 };
 
 export const replayHandler = async (database: Repo, ctx: ActionCtx) => {
-  const clbQuery = ctx.update.callback_query;
-  if (!('data' in clbQuery)) {
-    ctx.reply('Произошла ошибка');
-    return;
-  }
-  const query = clbQuery.data;
-  const chatId = ctx.chat.id;
-  const indexOfParamsStart = query.indexOf('?') + 1;
-  const params = query.slice(indexOfParamsStart);
-  const urlParams = new URLSearchParams(params);
-  const paramsObject = Object.fromEntries(urlParams);
-  const firstCouple: Couple = [+paramsObject.id1, +paramsObject.id2];
-  const secondCouple: Couple = [+paramsObject.id3, +paramsObject.id4];
-
-  await database.roomRepo.setFirstPair(chatId, firstCouple);
-  await database.roomRepo.setSecondPair(chatId, secondCouple);
-  await database.roomRepo.updateRoomState(chatId, 'PLAYING');
-
-  const first = await database.userRepo.getUser(firstCouple[0]);
-  const second = await database.userRepo.getUser(firstCouple[1]);
-  const third = await database.userRepo.getUser(secondCouple[0]);
-  const fouth = await database.userRepo.getUser(secondCouple[1]);
-
-  const reply = `Играют:
-  Первая команда: ${getMentionOfUser(first.id, first.name)} ${getMentionOfUser(second.id, second.name)}
-  Вторая команда: ${getMentionOfUser(third.id, third.name)} ${getMentionOfUser(fouth.id, fouth.name)}\nКто победил?
-  `
-  ctx.replyWithHTML(
-    reply,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: `${first.name}\n & \n${second.name}`, callback_data: "first team win" }, { text: `${third.name}\n & \n${fouth.name}`, callback_data: "second team win" }],
-        ]
-      }
+  try {
+    const clbQuery = ctx.update.callback_query;
+    if (!('data' in clbQuery)) {
+      ctx.reply('Произошла ошибка');
+      return;
     }
-  );
+    const query = clbQuery.data;
+    const chatId = ctx.chat.id;
+    const indexOfParamsStart = query.indexOf('?') + 1;
+    const params = query.slice(indexOfParamsStart);
+    const urlParams = new URLSearchParams(params);
+    const paramsObject = Object.fromEntries(urlParams);
+    const firstCouple: Couple = resolveCouple([+paramsObject.id1, +paramsObject.id2]);
+    const secondCouple: Couple = resolveCouple([+paramsObject.id3, +paramsObject.id4]);
+
+    const { reply, replyOptions } = await getReplyFromGame(database, chatId, firstCouple, secondCouple);
+
+    ctx.replyWithHTML(reply, replyOptions);
+  } catch (e) {
+    ctx.replyWithHTML('Произошла ошибка');
+  }
 }
+
+export const cancelCommand = authGuardMiddleware(async (database: Repo, ctx: Ctx) => {
+  try {
+    const chatId = ctx.chat.id;
+    const room = await database.roomRepo.getRoom(chatId);
+    if (room.state === 'IDLE') {
+      ctx.reply('Сейчас игра не ведется');
+      return;
+    }
+    if (!room.first.length || !room.second.length) {
+      ctx.reply('Игры не существует');
+      return;
+    }
+    await database.roomRepo.updateRoomState(chatId, 'IDLE');
+    ctx.reply('Игра успешно отменена');
+  } catch (error) {
+    ctx.replyWithHTML('Произошла ошибка');
+  }
+})

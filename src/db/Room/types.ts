@@ -1,5 +1,5 @@
 export type RoomState = 'PLAYING' | 'IDLE';
-export type Couple = [number, number];
+export type Couple = [number, number?];
 
 export interface Room {
   id: number,

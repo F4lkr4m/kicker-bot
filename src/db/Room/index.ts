@@ -1,5 +1,5 @@
 
-import { Room } from "./types";
+import {Couple, Room} from "./types";
 import { Db, Collection } from 'mongodb';
 
 export const ROOM_REPO_ERRORS = {
@@ -67,11 +67,11 @@ export class RoomsRepo {
     await this.rooms.updateOne({ id }, { $set: { players }});
   };
 
-  setFirstPair = async (id: Room['id'], couple: [number, number]) => {
+  setFirstPair = async (id: Room['id'], couple: Couple) => {
     await this.rooms.updateOne({ id }, { $set: { first: couple }});
   };
 
-  setSecondPair = async (id: Room['id'], couple: [number, number]) => {
+  setSecondPair = async (id: Room['id'], couple: Couple) => {
     await this.rooms.updateOne({ id }, { $set: { second: couple }});
   };
 

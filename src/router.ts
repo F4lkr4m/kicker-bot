@@ -5,7 +5,18 @@ import { rollCommand } from "./routes/roll";
 import { Repo } from "./db";
 import { enrichHandler } from "./middleware/dbMiddleware";
 import { Ctx } from "./types";
-import { ActionCtx, addPlayer, clearRoomHandle, createRoom, handleTeamWin, removePlayer, replayHandler, showPlayers, startGame } from "./routes/room";
+import {
+  ActionCtx,
+  addPlayer,
+  cancelCommand,
+  clearRoomHandle,
+  createRoom,
+  handleTeamWin,
+  exitCommand,
+  replayHandler,
+  showPlayers,
+  startCommand, startGame, removeCommand, removePlayerAction
+} from "./routes/room";
 import { getLeaderBoardTotal, getLeaderBoardWeekly } from "./routes/leaderBoard";
 
 const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | void> = {
@@ -13,19 +24,23 @@ const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | voi
   'roll': rollCommand,
   'help': helpCommand,
   'add': addPlayer,
-  'remove': removePlayer,
+  'exit': exitCommand,
+  'remove': removeCommand,
   'room': showPlayers,
   'create': createRoom,
-  'start': startGame,
+  'start': startCommand,
   'clear': clearRoomHandle,
   'leaders': getLeaderBoardTotal,
   'leadersWeekly': getLeaderBoardWeekly,
+  'cancel': cancelCommand,
 }
 
 const ACTIONS: Record<string, (database: Repo, ctx: ActionCtx) => Promise<void> | void> = {
   'first team win': (database, ctx) => handleTeamWin(database, ctx, 'first'),
   'second team win': (database, ctx) => handleTeamWin(database, ctx, 'second'),
-  'replay': (database, ctx) => replayHandler(database, ctx)
+  'replay': replayHandler,
+  'start game': startGame,
+  'remove player': removePlayerAction,
 }
 
 export const routing = (bot: Telegraf<Context<Update>>, database: Repo) => {
