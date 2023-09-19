@@ -246,7 +246,7 @@ export const showPlayers = async (database: Repo, ctx: Ctx) => {
       helperText += '\nДля игры необходимо максимум 4 игрока.';
       helperText += '\nКому-то придется выйти: /remove';
     }
-    if (room.players.length !== MIN_PLAYER_FOR_START && room.players.length !== MAX_PLAYER_FOR_START) {
+    if (room.players.length > MIN_PLAYER_FOR_START && room.players.length < MAX_PLAYER_FOR_START) {
       helperText += '\nНи туда ни сюда.';
       helperText += '\nКажется одного не хватает: /add';
     }

@@ -15,7 +15,7 @@ export const helpCommand = (database: Repo, ctx: Ctx) => {
   /exit - выйти из комнаты
   /remove {names} - удалить пользователя из комнаты, names - имена игроков, через пробел
   /leaders - список лидеров за все время
-  /leadersWeekly - список лидеров за неделю (с момента начала недели)
+  /leaders_weekly - список лидеров за неделю (с момента начала недели)
   /cancel - отменить текущую игру
 `
   ctx.replyWithHTML(helpText)
