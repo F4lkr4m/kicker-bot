@@ -31,7 +31,7 @@ const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | voi
   'start': startCommand,
   'clear': clearRoomHandle,
   'leaders': getLeaderBoardTotal,
-  'leadersWeekly': getLeaderBoardWeekly,
+  'leaders_weekly': getLeaderBoardWeekly,
   'cancel': cancelCommand,
 }
 
