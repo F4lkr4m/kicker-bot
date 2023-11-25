@@ -9,6 +9,15 @@
     "lib": [
       "ES2019"
     ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@usecase/*": ["src/usecase/*"],
+      "@db/*": ["src/db/*"],
+      "@types/*": ["src/types/*"],
+      "@tests/*": ["src/tests/*"],
+      "@utils/*": ["src/utils/*"],
+    },
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
