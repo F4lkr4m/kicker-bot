@@ -1,19 +1,21 @@
-import { Repo } from "../db";
-import { USER_REPO_ERRORS, } from "../db/Users";
+import { USER_REPO_ERRORS, UserRepo, } from "../db/Users";
 import { User } from "../db/Users/types";
-import { Ctx } from "../types";
+import { ActionCtx, Ctx } from "../types";
 
-export const authGuardMiddleware = (handler: (database: Repo, ctx: Ctx) => Promise<void>): (database: Repo, ctx: Ctx) => Promise<void> => {
-  return async (database: Repo, ctx: Ctx) => {
+export type Middleware = (ctx: Ctx | ActionCtx) => Promise<void>
+
+// Создает пользователя, если его не существует.
+export const authGuardMiddleware = (userRepo: UserRepo): Middleware => {
+  return async (ctx: Ctx | ActionCtx) => {
     const id = ctx.message.from.id;
     try {
-      const user = await database.userRepo.getUser(id);
+      const user = await userRepo.getUser(id);
       if (ctx.from.username && !user.username) {
         const updatedUser: User = {
           ...user,
           username: ctx.from.username,
         }
-        database.userRepo.udpateUser(updatedUser);
+        userRepo.udpateUser(updatedUser);
       }
     } catch (error) {
       if (error.message === USER_REPO_ERRORS.USER_NOT_EXISTS) {
@@ -22,9 +24,9 @@ export const authGuardMiddleware = (handler: (database: Repo, ctx: Ctx) => Promi
           name: ctx.message.from.first_name,
           username: ctx.from.username,
         }
-        await database.userRepo.createUser(newUser);
+        await userRepo.createUser(newUser);
+        ctx.reply('Пользователь создан');
       }
     }
-    await handler(database, ctx);
   }
 }

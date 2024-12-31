@@ -1,60 +1,46 @@
 import { Context, Telegraf } from "telegraf";
 import { Update } from "telegraf/typings/core/types/typegram";
-import { helpCommand, meCommand } from "./routes";
-import { rollCommand } from "./routes/roll";
-import { Repo } from "./db";
-import { enrichHandler } from "./middleware/dbMiddleware";
 import { Ctx } from "./types";
-import {
-  ActionCtx,
-  addPlayer,
-  cancelCommand,
-  clearRoomHandle,
-  createRoom,
-  handleTeamWin,
-  exitCommand,
-  replayHandler,
-  showPlayers,
-  startCommand, startGame, removeCommand, removePlayerAction
-} from "./routes/room";
-import { getLeaderBoardTotal, getLeaderBoardWeekly } from "./routes/leaderBoard";
+import { ActionCtx } from "@/types";
+import { Middleware, authGuardMiddleware } from "./middleware";
 
-const COMMANDS: Record<string, (database: Repo, ctx: Ctx) => Promise<void> | void> = {
-  'me': meCommand,
-  'roll': rollCommand,
-  'help': helpCommand,
-  'add': addPlayer,
-  'exit': exitCommand,
-  'remove': removeCommand,
-  'room': showPlayers,
-  'create': createRoom,
-  'start': startCommand,
-  'clear': clearRoomHandle,
-  'leaders': getLeaderBoardTotal,
-  'leaders_weekly': getLeaderBoardWeekly,
-  'cancel': cancelCommand,
+export interface RouterType {
+  bot: Telegraf<Context<Update>>;
+  addCommand: (key: string, handler: (ctx: Ctx) => void) => void;
+  addAction: (key: string, handler: (ctx: ActionCtx) => void) => void;
+  addAuthProtectedCommand: (key: string, handler: (ctx: Ctx) => void) => void;
+  addAuthProtectedAction: (key: string, handler: (ctx: ActionCtx) => void) => void;
 }
 
-const ACTIONS: Record<string, (database: Repo, ctx: ActionCtx) => Promise<void> | void> = {
-  'first team win': (database, ctx) => handleTeamWin(database, ctx, 'first'),
-  'second team win': (database, ctx) => handleTeamWin(database, ctx, 'second'),
-  'replay': replayHandler,
-  'start game': startGame,
-  'remove player': removePlayerAction,
+export class Router implements RouterType {
+  bot: Telegraf<Context<Update>>;
+  authMiddleware: Middleware;
+  constructor(bot: Telegraf<Context<Update>>, authMiddleware: Middleware) {
+    this.bot = bot;
+    this.authMiddleware = authMiddleware;
+  }
+
+  addCommand = (key: string, handler: (ctx: Ctx) => void) => this.bot.command(key, handler);
+
+  addAction = (key: string, handler: (ctx: ActionCtx) => void) => this.bot.action(key, handler);
+
+  addAuthProtectedCommand = (key: string, handler: (ctx: Ctx) => void) => {
+    this.bot.command(
+        key,
+        async (ctx) => {
+          await this.authMiddleware(ctx);
+          await handler(ctx);
+        }
+    )
+  };
+
+  addAuthProtectedAction = (key: string, handler: (ctx: ActionCtx) => void) => {
+    this.bot.action(
+        key,
+        async (ctx) => {
+          await this.authMiddleware(ctx);
+          await handler(ctx);
+        }
+    )
+  }
 }
-
-export const routing = (bot: Telegraf<Context<Update>>, database: Repo) => {
-  Object
-    .entries(COMMANDS)
-    .forEach(([key, handler]) => {
-      const handlerWithDB = enrichHandler(handler, database);
-      bot.command(key, handlerWithDB);
-    });
-
-  Object
-    .entries(ACTIONS)
-    .forEach(([key, handler]) => {
-      const handlerWithDB = enrichHandler(handler, database);
-      bot.action(new RegExp(key), handlerWithDB);
-    });
-};

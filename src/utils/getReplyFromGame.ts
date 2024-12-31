@@ -1,21 +1,23 @@
+import { RoomsRepo } from "@/db/Room";
 import {Repo} from "../db";
 import {Couple} from "../db/Room/types";
 import {getMentionOfUser} from "./getMentionOfUser";
 import {getTeamMsg} from "./getTeamMsg";
+import { UserRepo } from "@/db/Users";
 
 
-export const getReplyFromGame = async (database: Repo, chatId: number, firstCouple: Couple, secondCouple: Couple) => {
-    await database.roomRepo.setFirstPair(chatId, firstCouple);
-    await database.roomRepo.setSecondPair(chatId, secondCouple);
-    await database.roomRepo.updateRoomState(chatId, 'PLAYING');
+export const getReplyFromGame = async (roomRepo: RoomsRepo, userRepo: UserRepo, chatId: number, firstCouple: Couple, secondCouple: Couple) => {
+    await roomRepo.setFirstPair(chatId, firstCouple);
+    await roomRepo.setSecondPair(chatId, secondCouple);
+    await roomRepo.updateRoomState(chatId, 'PLAYING');
 
-    const first = await database.userRepo.getUser(firstCouple[0]);
+    const first = await userRepo.getUser(firstCouple[0]);
     const second = firstCouple[1]
-        ? await database.userRepo.getUser(firstCouple[1])
+        ? await userRepo.getUser(firstCouple[1])
         : undefined;
-    const third = await database.userRepo.getUser(secondCouple[0]);
+    const third = await userRepo.getUser(secondCouple[0]);
     const fourth = secondCouple[1]
-        ? await database.userRepo.getUser(secondCouple[1])
+        ? await userRepo.getUser(secondCouple[1])
         : undefined;
 
     const firstCoupleMsg = !second?.id
